@@ -2,7 +2,8 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
-
+#include <sys/types.h>
+#include <sys/wait.h>
 
 
 int ft_strlen(char *str)
@@ -101,36 +102,40 @@ void waitall(int nb)
 
 int main(int argc, char **argv, char **env)
 {
-    char *cargv;
+    char **cargv;
     int cur = 0;
 
     for (int i = 0 ; i < 1 ; i++)
     {
         int tube[2];
-        pid_t pid = fork()
+        pipe(tube);
+        pid_t pid = fork();
         if (pid == -1)
         {
             return (1);
         }
         else if (pid == 0)
         {
+            cur = 0;
 
             close(tube[1]);
-            cargv = arg(argv + 1 + cur, &cur)
-            execve(argv + 1 + cur, cargv, env);
-            close(tube[0])
+            cargv = arg(argv + 4 + cur, &cur);
+            dup2(tube[0] , 0);
+            close(tube[0]);
+            execve(argv[4], cargv, env);
+            close(tube[0]);
             exit(0);
         }
         else
         {
             cargv = arg(argv + 1 + cur, &cur);
-            dup2(1, tube[1], O_WRONLY);
+            dup2(1, tube[1]);
             close(1);
-            execve(argv + 1, cargv, env);
-            close(tube[0]);
+            close (tube[0]);
+            execve(argv[1], cargv, env);
             close(tube[1]);
         }
-        waitall();
+        waitall(1);
     }
     return (0);
 }
