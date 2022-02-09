@@ -51,24 +51,23 @@ char *ft_strdup(char *str)
     return (res);
 }
 
-char **arg(char **argv, int *cur)
+char **arg(char **argv)
 {
 
     int len;
     char **res;
 
     len = 0;
-    while (argv[*cur + len] != NULL && ft_strcmp(argv[*cur + len], "|") != 1 && ft_strcmp(argv[*cur + len], ";") != 1)
+    while (argv[len] != NULL && ft_strcmp(argv[len], "|") != 1 && ft_strcmp(argv[len], ";") != 1)
     {
         len++;
     }
     res = (char **)malloc( (len + 1)* sizeof(char*));
     for (int j = 0 ; j < len ; j++)
     {
-        res[j] = ft_strdup(argv[*cur + j]);
+        res[j] = ft_strdup(argv[j]);
     }
     res[len] = NULL;
-    *cur += len;
     return (res);
 }
 
@@ -100,42 +99,96 @@ void waitall(int nb)
     }
 }
 
+void displaydstr(char **str)
+{
+    int i;
+
+    i = 0;
+    while (str[i] != NULL)
+    {
+        dprintf(2, "%s ", str[i]);
+        i++;
+    }
+    return ;
+}
+/*
+char ***getallpipe(char *argv)
+{
+    int nbcmd;
+    char ***res;
+    int lencmd;
+    char **cmd;
+
+    nbcmd = 0;
+    while (argv != NULL && ft_strcmp(argv[nbcmd], ";") != 1)
+    {
+        if (ft_strcmp(argv[nbcmd], "|"))
+        {
+            nbcmd++;
+        }
+    }
+    nbcmd++;
+    res = (char ***)malloc(sizeof(char **) * (nbcmd + 1));
+    for (int i = 0 ; i < nbcmd ; i++)
+    {
+        lencmd = 0;
+        while (argv != NULL && ft_strcmp(argv[lencmd], ";") != 1 && ft_strcmp(argv[lencmd], "|" != 1))
+        {
+            lencmd++;
+        }
+        for (int j = 0 ; j < lencmd ; j++)
+        {
+            res[j] = (char **)(malloc(sizeof(char *) * lencmd))
+            res[j][k] = ft_strdup(argv + 1);
+        }        
+    }
+
+
+}
+*/
+void allpipe(char ***cmd, char **env)
+{
+	int fd[2];
+	pid_t pid;
+	int fdd = 0;				
+    int status;
+
+	while (*cmd != NULL) {
+		pipe(fd);
+		if ((pid = fork()) == -1) {
+			perror("fork");
+			exit(1);
+		}
+		else if (pid == 0) {
+			dup2(fdd, 0);
+			if (*(cmd + 1) != NULL) {
+				dup2(fd[1], 1);
+                //close(fd[1]);
+			}
+			close(fd[0]);
+            //displaydstr(*cmd);
+			execve((*cmd)[0], *cmd, env);
+			exit(1);
+		}
+		else {
+			waitpid(pid, &status, 0); 		
+			close(fd[1]);
+			fdd = fd[0];
+			cmd++;
+		}
+	}
+}
+
+
 int main(int argc, char **argv, char **env)
 {
-    char **cargv;
-    int cur = 0;
+    char *echo[] = {"/bin/echo", "salut", NULL};
+    char *grep[] = {"usr/bin/grep", "0", NULL};
+	char *cat[] = {"/usr/bin/cat", "f1", NULL};
+    char *ls[] = {"/usr/bin/ls", NULL};
+	
+    char **cmd[] = {cat, grep, NULL};
+	allpipe(cmd, env);
 
-    for (int i = 0 ; i < 1 ; i++)
-    {
-        int tube[2];
-        pipe(tube);
-        pid_t pid = fork();
-        if (pid == -1)
-        {
-            return (1);
-        }
-        else if (pid == 0)
-        {
-            cur = 0;
-
-            close(tube[1]);
-            cargv = arg(argv + 4 + cur, &cur);
-            dup2(tube[0] , 0);
-            close(tube[0]);
-            execve(argv[4], cargv, env);
-            close(tube[0]);
-            exit(0);
-        }
-        else
-        {
-            cargv = arg(argv + 1 + cur, &cur);
-            dup2(1, tube[1]);
-            close(1);
-            close (tube[0]);
-            execve(argv[1], cargv, env);
-            close(tube[1]);
-        }
-        waitall(1);
-    }
     return (0);
 }
