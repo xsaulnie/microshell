@@ -71,7 +71,6 @@ char **arg(char **argv)
     return (res);
 }
 
-
 void ft_deldstr(char **str)
 {
     int i;
@@ -163,7 +162,6 @@ void allpipe(char ***cmd, char **env)
 			dup2(fdd, 0);
 			if (*(cmd + 1) != NULL) {
 				dup2(fd[1], 1);
-                //close(fd[1]);
 			}
 			close(fd[0]);
             //displaydstr(*cmd);

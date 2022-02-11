@@ -1,0 +1,50 @@
+int main(int ac, char **av, char **env)
+{
+    (void)ac;
+    (void)av;
+    int    pipe0[2];
+    int    pipe1[2];
+    int    *pipes[2];
+    pipes[0] = pipe0;
+    pipes[1] = pipe1;
+    pipe(pipes[0]);
+
+    char    *a[2];
+    a[0] = "cat";
+    a[1] = NULL;
+    char    *b[2];
+    b[0] = "ls";
+    b[1] = NULL;
+
+    if (fork() == 0)
+    {
+        dup2(pipes[0][1], 1);
+        close(pipes[0][0]);
+        execve("/usr/bin/cat", a, env);
+    }
+
+    close(pipes[0][1]);
+    pipe(pipes[1]);
+
+    if (fork() == 0)
+    {
+        dup2(pipes[0][0], 0);
+        dup2(pipes[1][1], 1);
+        close(pipes[1][0]);
+        execve("/usr/bin/cat", a, env);
+    }
+
+    close(pipes[0][0]);
+    close(pipes[1][1]);
+
+    if (fork() == 0)
+    {
+        dup2(pipes[1][0], 0);
+        execve("/bin/ls",b, env);
+    }
+    close(pipes[1][0]);
+    int status;
+    while (wait(&status) != -1)
+    {
+    }
+}
