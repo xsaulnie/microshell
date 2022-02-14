@@ -8,6 +8,7 @@
 void displaydstr(char **str);
 int ft_strlen(char *str);
 int cd_function(char **argv, char **env);
+int escape_vir(char **argv, int ind);
 
 void ft_del_cmd(char ***cmd)
 {
@@ -67,6 +68,8 @@ void error_exe(char *txt, char *arg)
     msg[i + j] = '\n';
     msg[i + j + 1] = '\0';
     write(2, msg, len);
+    free(msg);
+    msg = NULL;
     return ;
 }
 
@@ -216,7 +219,7 @@ void displaydstr(char **str)
     return ;
 }
 
-void execute(char ***cmd, char **env, int nb)
+int execute(char ***cmd, char **env, int nb)
 {
     int tmpin= dup(0);
     int tmpout = dup(1);
@@ -231,6 +234,11 @@ void execute(char ***cmd, char **env, int nb)
 
     for (int i = 0 ; i < nb ; i++)
     {
+        if (ft_cmp(*(cmd + i)[0], "cd") == 1 && nb == 1)
+        {
+            if (cd_function(*(cmd + i), env))
+                exit(1);
+        }
         dup2(fdin, 0);
         close(fdin);
         if (i == nb - 1)
@@ -246,37 +254,35 @@ void execute(char ***cmd, char **env, int nb)
         dup2(fdout, 1);
         close(fdout);
 
-
         ret = fork();
         if (ret == 0)
         {
             if (ft_cmp(*(cmd + i)[0], "cd") == 1)
             {
-                if (i != nb - 1)
-                {
-                    if (cd_function(*(cmd + i), env))
-                        exit(1);
-                }
+                if (cd_function(*(cmd + i), env))
+                    exit(1);
+                exit(0);
             }
             else
             {
+                //dprintf(2, " {%s}\n", (*(cmd + i))[1]);
                 execve((*(cmd + i))[0], *(cmd + i), env);
                 error_exe("error: cannot execute ", (*(cmd + i))[0]);
-                exit(1);
+                exit(127);
             }
         }
-        if (ft_cmp(*(cmd + i)[0], "cd") == 1 && i == nb - 1)
+        waitpid(ret, &status, 0);
+        if (WIFEXITED(status))
         {
-            printf ("yes");
-            if (cd_function(*(cmd + i), env))
-                exit(1);
+            ret = WEXITSTATUS(status);
         }
-
     }
     dup2(tmpin, 0);
     dup2(tmpout, 1);
     close(tmpin);
     close(tmpout);
+
+    return(ret);
 
 }
 
@@ -292,7 +298,6 @@ void displaycmd(char ***cmd)
     }
 }
 
-
 int nb_end(char **argv)
 {
     int i;
@@ -302,11 +307,21 @@ int nb_end(char **argv)
         return (0);
     i = 0;
     res = 0;
+
+    i = escape_vir(argv, i);
+    if (argv[i] == NULL)
+        return (0);
     while (argv[i] != NULL)
     {
         if (ft_cmp(argv[i], ";"))
+        {
             res++;
-        i++;
+            i = escape_vir(argv, i);
+        }
+        else
+        {
+            i++;
+        }
     }
     return (res + 1);
 }
@@ -322,7 +337,7 @@ int next_virg(char **argv, int ind)
     {
         i++;
     }
-    return (i);
+    return (escape_vir(argv, i) - 1);
 }
 
 int len_cd(char **argv)
@@ -336,6 +351,15 @@ int len_cd(char **argv)
     return (i);
 }
 
+
+int escape_vir(char **argv, int ind)
+{
+    while (argv[ind] != NULL && ft_cmp(argv[ind], ";") == 1)
+    {
+        ind++;
+    }
+    return(ind);
+}
 
 int cd_function(char **argv, char **env)
 {
@@ -365,9 +389,9 @@ int main(int argc, char **argv, char **env)
     int i;
     int cur;
     int status;
-
+    int ret;
     i = 0;
-    cur = 1;
+    cur = escape_vir(argv, 1);
     tot_nb = nb_end(argv + 1);
     if (tot_nb == 0)
         return (0);
@@ -379,10 +403,13 @@ int main(int argc, char **argv, char **env)
         nb = nb_cmd(argv + cur);
         cmd = load_cmd(argv + cur);
         //displaycmd(cmd);
-        execute(cmd, env, nb);
+        //exit(1);
+        ret = execute(cmd, env, nb);
+        /*
         while (waitpid(-1, &status, 0) != -1)
         {
         }
+        */
         ft_del_cmd(cmd);
         cur = next_virg(argv, cur) + 1;
         i++;
@@ -401,5 +428,5 @@ int main(int argc, char **argv, char **env)
     //char **cmd[] = {echo1, cat, grep, NULL};
     char **cmd[] = {cat0, cat0, ls, NULL};
     */
-    return (0);
+    return (ret);
 }
