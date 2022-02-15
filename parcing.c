@@ -18,23 +18,49 @@ int ft_strlen(char *str)
     return (i);
 }
 
-void ft_putchar(char c)
+void print_error(char *str1, char *str2)
 {
-    write(1, &c, 1);
+    int len1 = ft_strlen(str1);
+    int len2 = ft_strlen(str2);
+    int i = 0;
+
+    int tot_len = len1 + len2 + 2;
+
+    char *res;
+
+    res = malloc(sizeof(char) * tot_len);
+    while (i < len1)
+    {
+        res[i] = str1[i];
+        i++;
+    }
+    while(i < tot_len)
+    {
+        res[i] = str2[i - len1];
+        i++;
+    }
+    res[tot_len - 2] = '\n';
+    res[tot_len - 1] = '\0';
+
+    write(2, res, tot_len - 1);
+    free(res);
+    return ;
 }
 
-void ft_putstr_fd(int fd, char *str)
-{
-    int len;
-    len = ft_strlen(str);
 
-    write(fd, str, len);
-}
 
-void exit_fatal()
+void *exit_fatal_ptr()
 {
-    ft_putstr_fd(2, "error exit fatal\n");
+    write(2, "error: exit_fatal\n", 18);
     exit(1);
+    return (NULL);
+}
+
+int exit_fatal(int st)
+{
+    write(2, "error: exit_fatal\n", 18);
+    exit(st);
+    return (st);
 }
 
 int ft_cmp(char *str1, char *str2)
@@ -44,7 +70,7 @@ int ft_cmp(char *str1, char *str2)
 
     if (len1 != len2)
         return (0);
-    if (strncmp(str1, str2, len1) == 0) // 0 !
+    if (strncmp(str1, str2, len1) == 0)
         return (1);
     return (0);
 }
@@ -53,13 +79,11 @@ char *ft_strdup(char *str)
 {
     char *res;
     int len = ft_strlen(str);
-    res = (char *)malloc(sizeof(char) * (len + 1));
+
+    res = malloc(sizeof(char) * (len + 1));
     if (res == NULL)
-    {
-        exit_fatal();
-        return (NULL);
-    }
-    for (int i = 0 ; i < len ; i++)
+        return(exit_fatal_ptr());
+    for (int i = 0 ; i < len ; i ++)
     {
         res[i] = str[i];
     }
@@ -70,131 +94,62 @@ char *ft_strdup(char *str)
 char **ft_cmd(char **argv, int deb, int end)
 {
     char **res;
-    int len;
 
-    len = end - deb + 1;
-
-    res = (char **)malloc(sizeof(char *) * len);
+    res = malloc(sizeof(char *) * (end - deb + 1));
     if (res == NULL)
-    {
-        return exit_fatal(), (NULL);
-    }
-
+        return(exit_fatal_ptr());
     for (int i = deb ; i < end ; i++)
     {
-        res[i - deb] = ft_strdup(argv[i]); // - deb !!!
+        res[i - deb] = ft_strdup(argv[i]);
     }
-    res[len] = NULL;
+    res[end - deb] = NULL;
     return (res);
 }
 
-int escape_vir(char **argv, int ind)
+int next_pipe(char **argv, int cur, int *breaker)
 {
-    while(argv[ind] != NULL && ft_cmp(argv[ind], ";" ) == 1)
+    while (argv[cur] != NULL && ft_cmp(argv[cur], ";") != 1)
     {
-        ind++;
-    }
-    return (ind);
-}
-
-int nb_cmd(char **argv, int ind)
-{
-    int res = 0;
-
-    if (argv[0] == NULL)
-        return (0);
-    ind = escape_vir(argv, ind);
-    if (argv[ind] == NULL)
-        return (0);
-    while(argv[ind] != NULL && ft_cmp(argv[ind], ";") != 1)
-    {
-        if (ft_cmp(argv[ind], "|") == 1)
-            res++;
-        ind++;
-    }
-    //exit(0);
-    return (res + 1);
-}
-
-
-int next_pipe(char **argv, int cur)
-{
-    while(argv[cur] != NULL && ft_cmp(argv[cur], "|") != 1)
-    {
+        if (ft_cmp(argv[cur], "|") == 1)
+            return (cur);
         cur++;
     }
+    *breaker = 1;
     return (cur);
+}
+
+int nb_cmd(char **argv, int cur)
+{
+    int res = 0;
+    while(argv[cur] != NULL && ft_cmp(argv[cur], ";") != 1)
+    {
+        if (ft_cmp(argv[cur], "|") == 1)
+            res++;
+        cur++;
+    }
+    return(res + 1);
 }
 
 char ***load_cmd(char **argv)
 {
     char ***res;
-    int ind = escape_vir(argv, 0);
-    int nb = nb_cmd(argv, ind);
+    int cur = 0;
+    int nb = nb_cmd(argv, 0);
     int nxt;
-    printf("%d\n", nb);
-    if (nb == 0)
-        return (NULL);
-    res = (char ***)malloc(sizeof(char **) * (nb + 1));
+    int i = 0;
+    int breaker = 0;
+    res = malloc(sizeof(char **) * (nb + 1));
     if (res == NULL)
+        return (exit_fatal_ptr());
+    while (breaker != 1)
     {
-        exit_fatal();
-        return (NULL);
-    }
-
-    for (int i = 0 ; i < nb ; i++)
-    {
-        nxt = next_pipe(argv, ind);
-        printf("%d %d\n", ind, nxt);
-        res[i] = ft_cmd(argv, ind, nxt);
-        ind = nxt + 1; //oupsi
+        nxt = next_pipe(argv, cur, &breaker);
+        res[i] = ft_cmd(argv, cur, nxt);
+        cur = nxt + 1;
+        i++;
     }
     res[nb] = NULL;
-
     return (res);
-
-}
-
-int nb_allcmd(char **argv)
-{
-    int i = 0;
-    int res = 0;
-    i = escape_vir(argv, i);
-    while (argv[i] != NULL)
-    {
-        if (ft_cmp(argv[i], ";") == 1)
-        {
-             i = escape_vir(argv, i);
-            res++;
-        }
-        else
-        {
-            i++; //important
-        }
-    }
-    return (res + 1);
-}
-
-void displaycmd(char ***cmd)
-{
-    for (int i = 0 ; cmd[i] != NULL ; i++)
-    {
-        for (int j = 0 ; cmd[i][j] != NULL ; j++)
-        {
-            printf("%s\n", cmd[i][j]);
-        }
-        printf("\n");
-    }
-    printf("\n");
-}
-
-int next_virg(char **argv, int cur)
-{
-    while(ft_cmp(argv[cur], ";") != 1)
-    {
-        cur++;
-    }
-    return(escape_vir(argv, cur));
 }
 
 void ft_del_cmd(char ***cmd)
@@ -206,32 +161,149 @@ void ft_del_cmd(char ***cmd)
             free(cmd[i][j]);
         }
         free(cmd[i]);
-
     }
     free(cmd);
+}
+
+void display_cmd(char ***cmd)
+{
+    for (int i = 0 ; cmd[i] ; i++)
+    {
+        for (int j = 0 ; cmd[i][j] ; j++)
+        {
+            printf("-%s-", cmd[i][j]);
+        }
+        printf("\n");
+    }
+}
+int escape_vir(char **argv, int i)
+{
+    if (argv[0] == NULL)
+        return (i);
+    while (argv[i] != NULL && ft_cmp(argv[i], ";") == 1)
+    {
+        i++;
+    }
+    return (i);
+}
+
+int next_virg(char **argv, int i)
+{
+    while (argv[i] != NULL && ft_cmp(argv[i], ";") != 1)
+    {
+        i++;
+    }
+    return (escape_vir(argv, i) - 1);
+}
+
+int cd_function(char **argv)
+{
+    int ret;
+    int len = 0;
+    for (int i = 0 ; argv[i] ; i++)
+    {
+        len++;
+    }
+    if (len != 2)
+    {
+        write(2, "error: cd: Bad arguments\n", 25);
+        return (1);
+    }
+    ret = chdir(argv[1]);
+    if (ret == -1)
+    {
+        print_error("error: cd: cannot change directory to ", argv[1]);
+        return (1);
+    }
+    return (0);
+}
+
+int execute(char ***cmd, int nb, char **env)
+{
+    int fdin;
+    int fdout;
+
+    int tmpin = dup(0);
+    int tmpout = dup(1);
+
+    int fdpipe[2];
+
+    int ret;
+    int status;
+
+    fdin = dup(tmpin);
+
+    for (int i = 0 ; i < nb ; i++)
+    {
+        if (cmd[1] == NULL && ft_cmp(*(cmd + 0)[0], "cd") == 1)
+        {
+            cd_function(*cmd);
+            return (0);
+        }
+        dup2(fdin, 0);
+        close(fdin);
+        if (i == nb - 1)
+        {
+            fdout = dup(tmpout);
+        }
+        else
+        {
+            if(pipe(fdpipe))
+                return(exit_fatal(1));
+            fdin = fdpipe[0];
+            fdout = fdpipe[1];
+        }
+        dup2(fdout, 1);
+        close(fdout);
+        ret = fork();
+        if (ret < 0)
+            return (exit_fatal(1));
+        if (ret == 0)
+        {
+            if (ft_cmp("cd", (*(cmd + i))[0]) == 1)
+            {
+                exit(cd_function(*(cmd +i)));
+            }
+            else
+            {
+                execve(*(cmd + i)[0], *(cmd + i), env);
+                print_error("error: cannot execute ", *(cmd + i)[0]);
+                exit(127);
+            }
+        }
+        waitpid(ret, &status, 0);
+        if (WIFEXITED(status))
+        {
+            ret = WEXITSTATUS(status);
+        }
+    }
+
+    dup2(tmpin, 0);
+    dup2(tmpout, 0);
+    close(tmpin);
+    close(tmpout);
+
+    return (ret);
 }
 
 int main(int argc, char **argv, char **env)
 {
 
+
     char ***cmd;
-    int nb_all;
     int i = 0;
-    int ind = 1;
-    nb_all = nb_allcmd(argv + 1);
-    while (i < nb_all)
+    int cur = escape_vir(argv, 1);
+    int nb;
+    int ret;
+
+    while (cur < argc)
     {
-        if (ind == argc)
-            break ;
-
-        cmd = load_cmd(argv + ind);
-
-        displaycmd(cmd);
-
-                    exit(0);
+        cmd = load_cmd(argv + cur);
+        nb = nb_cmd(argv, cur);
+        ret = execute(cmd, nb, env);
         ft_del_cmd(cmd);
-        ind = next_virg(argv, ind);
-        i++;
+        cur = next_virg(argv, cur) + 1;
     }
-    return (0);
+
+    return (ret);
 }

@@ -255,6 +255,7 @@ int execute(char ***cmd, char **env, int nb)
         close(fdout);
 
         ret = fork();
+   ///         printf("%d %d\n", fdin, fdout);
         if (ret == 0)
         {
             if (ft_cmp(*(cmd + i)[0], "cd") == 1)
