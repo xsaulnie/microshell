@@ -9,6 +9,8 @@ void putstr_fd(int fd, char *str);
 
 int ft_strlen(char *str)
 {
+    if (str == NULL)
+        return (0);
     int i;
 
     i = 0;
@@ -51,6 +53,7 @@ int print_error(char *msg, char *str)
     buf[tot_len - 1] = '\n';
     buf[tot_len] = '\0';
     write(2, buf, ft_strlen(buf));
+    free(buf);
     return 0;
 }
 
@@ -76,14 +79,14 @@ char *ft_strdup(char *str)
     char *res;
     int len = ft_strlen(str);
 
-    res = malloc(sizeof(char) * len);
+    res = malloc(sizeof(char) * (len + 1));
     if (res == NULL)
         return exit_fatal(), NULL;
     for (int i = 0 ; i < len ; i++)
     {
         res[i] = str[i];
     }
-    str[len] = '\0';
+    res[len] = '\0';
     return (res);
 }
 
@@ -201,6 +204,97 @@ void display_cmd(char ***cmd)
     }
 }
 
+
+
+int cd_function(char **argv)
+{
+    int i = 0;
+    while (argv[i])
+        i++;
+    if (i != 2)
+        return putstr_fd(2, "error:cd bad arguments\n"), 1;
+    int ret = chdir(argv[1]);
+    if (ret == -1)
+        return print_error("error: cd: cannot change to", argv[1]), 1;
+    return (0);
+}
+
+int nb_end(char ***cmd)
+{
+    int i;
+
+    i = 0;
+    while (cmd[i])
+    {
+        i++;
+    }
+    return (i);
+}
+int execute(char ***cmd, char **env)
+{
+    int fdout;
+    int fdin;
+    int i = 0;
+    int tmpin = dup(0);
+    int tmpout = dup(1);
+    int fdpipe[2];
+    int ret = 1;
+    int status;
+    int nb = nb_end(cmd);
+    fdin = dup(tmpin);
+
+
+    while (i < nb)
+    {
+        if (cmd[1] == NULL && cmp(*(cmd + 0)[0], "cd") == 1)
+        {
+            if (cd_function(*cmd))
+                return (1);
+            return (0);
+        }
+        
+        dup2(fdin, 0);
+        close (fdin);
+        if (i == nb - 1)
+        {
+            fdout = dup(tmpout);
+        }
+        else
+        {
+            pipe(fdpipe);
+            fdin = fdpipe[0];
+            fdout = fdpipe[1];
+        }
+        dup2 (fdout, 1);
+        close(fdout);
+        ret = fork();
+        if (ret == 0)
+        {
+            if (cmp(*(cmd+ i)[0], "cd") == 1)
+            {
+                if (cd_function(*(cmd + i)))
+                    exit(1);
+                exit(0);
+            }
+            execve(*(cmd+ i)[0], *(cmd + i), env);
+            print_error("error: cannot execute ", *(cmd + i)[0]);
+            exit(127);
+        }
+        waitpid(ret, &status, 0);
+        if(WIFEXITED(status))
+        {
+            ret = WEXITSTATUS(status);
+        }
+        i++;
+    }
+
+    dup2(tmpin, 0);
+    close(tmpin);
+    dup2(tmpout, 1);
+    close(tmpout);
+    return (ret);
+}
+
 int main(int argc, char **argv, char **env)
 {
     (void)(env);
@@ -213,9 +307,7 @@ int main(int argc, char **argv, char **env)
     while (cur < argc)
     {
         cmd = load_cmd(argv + cur);
-       // exit(1);
-        display_cmd(cmd);
-        printf("\n");
+        execute(cmd, env);
 
         ft_del_cmd(cmd);
         cur = next_virg(argv, cur) + 1;

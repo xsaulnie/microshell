@@ -48,7 +48,6 @@ void print_error(char *str1, char *str2)
 }
 
 
-
 void *exit_fatal_ptr()
 {
     write(2, "error: exit_fatal\n", 18);
@@ -74,6 +73,8 @@ int ft_cmp(char *str1, char *str2)
         return (1);
     return (0);
 }
+
+//
 
 char *ft_strdup(char *str)
 {
@@ -176,6 +177,7 @@ void display_cmd(char ***cmd)
         printf("\n");
     }
 }
+
 int escape_vir(char **argv, int i)
 {
     if (argv[0] == NULL)
